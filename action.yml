@@ -75,7 +75,7 @@ runs:
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,mode=max,dest=/tmp/.buildx-cache-new
         context: ${{ steps.prep.outputs.context }}
-        dockerfile: ${{ steps.prep.outputs.dockerfile }}
+        file: ${{ steps.prep.outputs.dockerfile }}
         tags: ${{ steps.prep.outputs.tags }}
         push: true
 
