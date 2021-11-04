@@ -40,7 +40,7 @@ runs:
 
         if [[ -n '${{ inputs.app-resource }}' ]]; then
           query_setting() {
-            platform query --resource '${{ inputs.app-resource }}' "settings.$1"
+            platform --resource '${{ inputs.app-resource }}' query "settings.$1"
           }
         else
           query_setting() {
