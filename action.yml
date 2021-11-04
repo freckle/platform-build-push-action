@@ -1,0 +1,86 @@
+name: Platform build and push
+description: Build and push a container using the Freckle Platform CLI
+inputs:
+  platform-version:
+    description: Version of Platform CLI to install
+    required: true
+    default: latest
+  platform-suffix:
+    description: OS-specific suffix for Platform package archive
+    required: true
+    default: x86_64-linux
+  app-directory:
+    description: Directory containing the App's .platform
+    required: true
+    default: "."
+  app-resource:
+    description: --resource option
+    required: true
+    default: ""
+  image-tag:
+    description: Image tag to build and push (default is github.sha)
+    required: true
+    default: ""
+outputs: {}
+runs:
+  using: composite
+  steps:
+    - uses: freckle/setup-platform-action@v4
+      with:
+        version: ${{ inputs.platform-version }}
+        suffix: ${{ inputs.platform-suffix }}
+
+    - shell: bash
+      run: platform container:login
+
+    - id: prep
+      shell: bash
+      run: |
+        cd '${{ inputs.app-directory }}'
+
+        if [[ -n '${{ inputs.app-resource }}' ]]; then
+          query_setting() {
+            platform query --resource '${{ inputs.app-resource }}' "settings.$1"
+          }
+        else
+          query_setting() {
+            platform query "settings.$1"
+          }
+        fi
+
+        context=${{ inputs.app-directory }}/$(query_setting DockerBuildContext)
+        echo "::set-output name=context::$context"
+
+        dockerfile=$(query_setting Dockerfile)
+        echo "::set-output name=dockerfile::$dockerfile"
+
+        tag=${{ inputs.image-tag }}
+        tag=${tag:-${{ github.sha }}}
+        tags=$(query_setting EcrRepository):$tag
+        echo "::set-output name=tags::$tags"
+
+    - uses: actions/cache@v2
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-${{ steps.prep.outputs.context }}-image-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-${{ steps.prep.outputs.context }}-image-
+
+    - id: buildx
+      uses: docker/setup-buildx-action@v1
+
+    - uses: docker/build-push-action@v2
+      with:
+        builder: ${{ steps.buildx.outputs.name }}
+        cache-from: type=local,src=/tmp/.buildx-cache
+        cache-to: type=local,mode=max,dest=/tmp/.buildx-cache-new
+        context: ${{ steps.prep.outputs.context }}
+        dockerfile: ${{ steps.prep.outputs.dockerfile }}
+        tags: ${{ steps.prep.outputs.tags }}
+        push: true
+
+    # Only cache this build's output; don't retain from every build before
+    - shell: bash
+      run: |
+        rm -rf /tmp/.buildx-cache
+        mv /tmp/.buildx-cache-new /tmp/.buildx-cache
