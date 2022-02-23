@@ -1,14 +1,13 @@
 name: Platform build and push
 description: Build and push a container using the Freckle Platform CLI
 inputs:
-  platform-version:
+  platform-setup-version:
     description: Version of Platform CLI to install
     required: true
-    default: latest
-  platform-suffix:
-    description: OS-specific suffix for Platform package archive
+    default: ""
+  platform-setup-token:
+    description: GitHub token with access to freckle/platform artifacts
     required: true
-    default: x86_64-linux
   app-directory:
     description: Directory containing the App's .platform
     required: true
@@ -17,66 +16,61 @@ inputs:
     description: --resource option
     required: true
     default: ""
-  image-tag:
-    description: Image tag to build and push (default is github.sha)
-    required: true
-    default: ""
 outputs: {}
 runs:
   using: composite
   steps:
-    - uses: freckle/setup-platform-action@v4
+    - uses: freckle/setup-platform-action@v6
       with:
-        version: ${{ inputs.platform-version }}
-        suffix: ${{ inputs.platform-suffix }}
-
-    - shell: bash
-      run: platform container:login
+        version: ${{ inputs.platform-setup-version }}
+        token: ${{ inputs.platform-setup-token }}
 
     - id: prep
       shell: bash
       run: |
         cd '${{ inputs.app-directory }}'
 
-        if [[ -n '${{ inputs.app-resource }}' ]]; then
-          query_setting() {
-            platform --resource '${{ inputs.app-resource }}' query "settings.$1"
-          }
-        else
-          query_setting() {
-            platform query "settings.$1"
-          }
-        fi
+        # Set each setting as an output of the same name
+        for name in Dockerfile DockerBuildContext EcrRepository; do
+          printf "::set-output name=$name::"
 
-        context=${{ inputs.app-directory }}/$(query_setting DockerBuildContext)
-        echo "::set-output name=context::$context"
+          if [[ -n '${{ inputs.app-resource }}' ]]; then
+            platform --resource '${{ inputs.app-resource }}' query "settings.$name"
+          else
+            platform query "settings.$name"
+          fi
+        done
 
-        dockerfile=$(query_setting Dockerfile)
-        echo "::set-output name=dockerfile::$dockerfile"
-
-        tag=${{ inputs.image-tag }}
-        tag=${tag:-${{ github.sha }}}
-        tags=$(query_setting EcrRepository):$tag
-        echo "::set-output name=tags::$tags"
+    - id: meta
+      uses: docker/metadata-action@v3
+      with:
+        images: ${{ steps.prep.outputs.EcrRepository }}
+        tags: |
+          type=sha,prefix=,format=long,priority=1000
+          type=edge,branch=main
 
     - uses: actions/cache@v2
       with:
         path: /tmp/.buildx-cache
-        key: ${{ runner.os }}-${{ steps.prep.outputs.context }}-image-${{ github.sha }}
+        key: ${{ runner.os }}-${{ steps.prep.outputs.DockerBuildContext }}-image-${{ github.sha }}
         restore-keys: |
-          ${{ runner.os }}-${{ steps.prep.outputs.context }}-image-
+          ${{ runner.os }}-${{ steps.prep.outputs.DockerBuildContext }}-image-
 
     - id: buildx
       uses: docker/setup-buildx-action@v1
+
+    - shell: bash
+      run: platform container:login
 
     - uses: docker/build-push-action@v2
       with:
         builder: ${{ steps.buildx.outputs.name }}
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,mode=max,dest=/tmp/.buildx-cache-new
-        context: ${{ steps.prep.outputs.context }}
-        file: ${{ steps.prep.outputs.dockerfile }}
-        tags: ${{ steps.prep.outputs.tags }}
+        context: ${{ inputs.app-directory}}/${{ steps.prep.outputs.DockerBuildContext }}
+        file: ${{ steps.prep.outputs.Dockerfile }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
         push: true
 
     # Only cache this build's output; don't retain from every build before
