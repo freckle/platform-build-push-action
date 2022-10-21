@@ -32,14 +32,14 @@ runs:
 
         # Set each setting as an output of the same name
         for name in Dockerfile DockerBuildContext EcrRepository; do
-          printf "::set-output name=$name::"
+          printf "$name="
 
           if [[ -n '${{ inputs.app-resource }}' ]]; then
             platform --resource '${{ inputs.app-resource }}' query "settings.$name"
           else
             platform query "settings.$name"
           fi
-        done
+        done >>"$GITHUB_OUTPUTS"
 
     - id: meta
       uses: docker/metadata-action@v3
