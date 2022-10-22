@@ -39,7 +39,7 @@ runs:
           else
             platform query "settings.$name"
           fi
-        done >>"$GITHUB_OUTPUTS"
+        done >>"$GITHUB_OUTPUT"
 
     - id: meta
       uses: docker/metadata-action@v3
