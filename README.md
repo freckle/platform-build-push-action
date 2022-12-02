@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: freckle/platform-build-push-action@main
+      - uses: freckle/platform-build-push-action@v3
 ```
 
 ## Environment
