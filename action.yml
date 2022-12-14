@@ -57,7 +57,7 @@ runs:
           ${{ runner.os }}-${{ steps.prep.outputs.DockerBuildContext }}-image-
 
     - id: buildx
-      uses: docker/setup-buildx-action@v1
+      uses: docker/setup-buildx-action@v2
 
     - shell: bash
       run: platform container:login
