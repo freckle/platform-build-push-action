@@ -42,14 +42,14 @@ runs:
         done >>"$GITHUB_OUTPUT"
 
     - id: meta
-      uses: docker/metadata-action@v3
+      uses: docker/metadata-action@v4
       with:
         images: ${{ steps.prep.outputs.EcrRepository }}
         tags: |
           type=sha,prefix=,format=long,priority=1000
           type=edge,branch=main
 
-    - uses: actions/cache@v2
+    - uses: actions/cache@v3
       with:
         path: /tmp/.buildx-cache
         key: ${{ runner.os }}-${{ steps.prep.outputs.DockerBuildContext }}-image-${{ github.sha }}
@@ -62,7 +62,7 @@ runs:
     - shell: bash
       run: platform container:login
 
-    - uses: docker/build-push-action@v2
+    - uses: docker/build-push-action@v3
       with:
         builder: ${{ steps.buildx.outputs.name }}
         cache-from: type=local,src=/tmp/.buildx-cache
