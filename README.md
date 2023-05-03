@@ -1,4 +1,5 @@
-**Archived**: users should move to PlatformCLI v3 and `setup-platform-action@v7` then just call `platform deploy`.
+**Archived**: users should move to PlatformCLI v3 and
+`setup-platform-action@v7`, then just call `platform container:push`.
 
 # Platform Build and Push Action
 
