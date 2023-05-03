@@ -1,3 +1,5 @@
+**Archived**: users should move to PlatformCLI v3 and `setup-platform-action@v7` then just call `platform deploy`.
+
 # Platform Build and Push Action
 
 GitHub Action to build and push using the [Freckle Platform CLI][platform].
